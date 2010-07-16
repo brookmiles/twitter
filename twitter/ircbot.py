@@ -66,7 +66,7 @@ OAUTH_FILE = os.environ.get('HOME', '') + os.sep + '.twitterbot_oauth'
 
 def debug(msg):
     # uncomment this for debug text stuff
-    # print >> sys.stderr, msg
+    print >> sys.stderr, msg
     pass
 
 class SchedTask(object):
@@ -130,7 +130,7 @@ class TwitterBot(object):
 
         self.sched = Scheduler(
             (SchedTask(self.process_events, 1),
-             SchedTask(self.check_statuses, 120)))
+             SchedTask(self.check_statuses, 60)))
         self.lastUpdate = time.gmtime()
 
     def check_statuses(self):
@@ -155,7 +155,7 @@ class TwitterBot(object):
                 #   to people who are not on our following list.
                 if not text.startswith("@"):
                     self.privmsg_channels(
-                        u"=^_^=  %s%s%s %s" %(
+                        u"%s%s%s %s" %(
                             IRC_BOLD, update['user']['screen_name'],
                             IRC_BOLD, text.decode('utf-8')))
 
@@ -174,16 +174,16 @@ class TwitterBot(object):
         try:
             if (not args):
                 return
-            if (args[0] == 'follow' and args[1:]):
-                self.follow(conn, evt, args[1])
-            elif (args[0] == 'unfollow' and args[1:]):
-                self.unfollow(conn, evt, args[1])
-            else:
-                conn.privmsg(
-                    evt.source().split('!')[0],
-                    "=^_^= Hi! I'm Twitterbot! you can (follow "
-                    + "<twitter_name>) to make me follow a user or "
-                    + "(unfollow <twitter_name>) to make me stop.")
+#            if (args[0] == 'follow' and args[1:]):
+#                self.follow(conn, evt, args[1])
+#            elif (args[0] == 'unfollow' and args[1:]):
+#                self.unfollow(conn, evt, args[1])
+#            else:
+#                conn.privmsg(
+#                    evt.source().split('!')[0],
+#                    "=^_^= Hi! I'm Twitterbot! you can (follow "
+#                    + "<twitter_name>) to make me follow a user or "
+#                    + "(unfollow <twitter_name>) to make me stop.")
         except Exception:
             traceback.print_exc(file=sys.stderr)
 
@@ -198,14 +198,15 @@ class TwitterBot(object):
             elif args[0] == 'CLIENTINFO':
                 conn.ctcp_reply(source, "CLIENTINFO PING VERSION CLIENTINFO")
 
-    def privmsg_channel(self, msg):
-        return self.ircServer.privmsg(
-            self.config.get('irc', 'channel'), msg.encode('utf-8'))
+    def privmsg_channel(self, name, msg):
+        return self.ircServer.privmsg(name, msg.encode('utf-8'))
 
     def privmsg_channels(self, msg):
         return_response=True
         channels=self.config.get('irc','channel').split(',')
-        return self.ircServer.privmsg_many(channels, msg.encode('utf-8'))
+        for channel in channels:
+            name, key = channel.split()
+            self.ircServer.privmsg(name, msg.encode('utf-8'))
 
     def follow(self, conn, evt, name):
         userNick = evt.source().split('!')[0]
@@ -214,20 +215,20 @@ class TwitterBot(object):
         if (name in friends):
             conn.privmsg(
                 userNick,
-                "=O_o= I'm already following %s." %(name))
+                "I'm already following %s." %(name))
         else:
             try:
                 self.twitter.friendships.create(id=name)
             except TwitterError:
                 conn.privmsg(
                     userNick,
-                    "=O_o= I can't follow that user. Are you sure the name is correct?")
+                    "I can't follow that user. Are you sure the name is correct?")
                 return
             conn.privmsg(
                 userNick,
-                "=^_^= Okay! I'm now following %s." %(name))
+                "Okay! I'm now following %s." %(name))
             self.privmsg_channels(
-                "=o_o= %s has asked me to start following %s" %(
+                "%s has asked me to start following %s" %(
                     userNick, name))
 
     def unfollow(self, conn, evt, name):
@@ -237,14 +238,14 @@ class TwitterBot(object):
         if (name not in friends):
             conn.privmsg(
                 userNick,
-                "=O_o= I'm not following %s." %(name))
+                "I'm not following %s." %(name))
         else:
             self.twitter.friendships.destroy(id=name)
             conn.privmsg(
                 userNick,
-                "=^_^= Okay! I've stopped following %s." %(name))
+                "Okay! I've stopped following %s." %(name))
             self.privmsg_channels(
-                "=o_o= %s has asked me to stop following %s" %(
+                "%s has asked me to stop following %s" %(
                     userNick, name))
 
     def run(self):
@@ -254,7 +255,8 @@ class TwitterBot(object):
             self.config.get('irc', 'nick'))
         channels=self.config.get('irc', 'channel').split(',')
         for channel in channels:
-            self.ircServer.join(channel)
+            name, key = channel.split()
+            self.ircServer.join(name, key)
 
         while True:
             try:
