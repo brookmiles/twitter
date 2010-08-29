@@ -7,7 +7,8 @@ USAGE:
 ACTIONS:
  authorize      authorize the command-line tool to interact with Twitter
  follow         add the specified user to your follow list
- friends        get latest tweets from your friends (default action)
+ home           get latest tweets from your home feed (default action)
+ friends        get latest tweets from your friends only
  help           print this help text that you are currently reading
  leave          remove the specified user from your following list
  public         get latest public tweets
@@ -38,6 +39,7 @@ FORMATS for the --format option
  verbose         multiple lines per status, more verbose status info
  urls            nothing but URLs
  ansi            ansi colour (rainbow mode)
+ irc             "<id> <username> <text>" suitable for easy parsing from eggdrop script
 
 
 CONFIG FILES
@@ -74,7 +76,7 @@ from oauth_dance import oauth_dance
 import ansi
 
 OPTIONS = {
-    'action': 'friends',
+    'action': 'home',
     'refresh': False,
     'refresh_rate': 600,
     'format': 'default',
@@ -164,6 +166,10 @@ class VerboseStatusFormatter(object):
             status['created_at'],
             status['text']))
 
+class IRCStatusFormatter(object):
+    def __call__(self, status, options):
+        return (u"%s %s %s" %(status['id'], status['user']['screen_name'], status['text'].replace("\n", " ")))
+
 class URLStatusFormatter(object):
     urlmatch = re.compile(r'https?://\S+')
     def __call__(self, status, options):
@@ -227,6 +233,7 @@ formatters = {}
 status_formatters = {
     'default': StatusFormatter,
     'verbose': VerboseStatusFormatter,
+    'irc': IRCStatusFormatter,
     'urls': URLStatusFormatter,
     'ansi': AnsiStatusFormatter
 }
@@ -364,6 +371,10 @@ class AdminAction(Action):
         else:
             printNicely(af(options['action'], user))
 
+class HomeAction(StatusAction):
+    def getStatuses(self, twitter, options):
+        return reversed(twitter.statuses.home_timeline(count=options["length"]))
+
 class FriendsAction(StatusAction):
     def getStatuses(self, twitter, options):
         return reversed(twitter.statuses.friends_timeline(count=options["length"]))
@@ -450,6 +461,7 @@ class DoNothingAction(Action):
 actions = {
     'authorize' : DoNothingAction,
     'follow'    : FollowAction,
+    'home'      : HomeAction,
     'friends'   : FriendsAction,
     'help'      : HelpAction,
     'leave'     : LeaveAction,
@@ -492,7 +504,7 @@ def main(args=sys.argv[1:]):
             if v: options[k] = v
 
     if options['refresh'] and options['action'] not in (
-        'friends', 'public', 'replies'):
+        'home', 'friends', 'public', 'replies'):
         print >> sys.stderr, "You can only refresh the friends, public, or replies actions."
         print >> sys.stderr, "Use 'twitter -h' for help."
         return 1

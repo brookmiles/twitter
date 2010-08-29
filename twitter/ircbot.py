@@ -143,6 +143,8 @@ class TwitterBot(object):
             return
 
         nextLastUpdate = self.lastUpdate
+
+        updates.reverse()
         for update in updates:
             crt = parse(update['created_at']).utctimetuple()
             if (crt > self.lastUpdate):
@@ -153,15 +155,14 @@ class TwitterBot(object):
                 # Skip updates beginning with @
                 # TODO This would be better if we only ignored messages
                 #   to people who are not on our following list.
-                if not text.startswith("@"):
-                    self.privmsg_channels(
-                        u"%s%s%s %s" %(
-                            IRC_BOLD, update['user']['screen_name'],
-                            IRC_BOLD, text.decode('utf-8')))
+                #if not text.startswith("@"):
+                self.privmsg_channels(
+                    u"%s%s%s %s" %(
+                        IRC_BOLD, update['user']['screen_name'],
+                        IRC_BOLD, text.decode('utf-8')))
 
                 nextLastUpdate = crt
-            else:
-                break
+
         self.lastUpdate = nextLastUpdate
 
     def process_events(self):
