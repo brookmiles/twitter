@@ -168,7 +168,12 @@ class VerboseStatusFormatter(object):
 
 class IRCStatusFormatter(object):
     def __call__(self, status, options):
-        return (u"%s %s %s" %(status['id'], status['user']['screen_name'], status['text'].replace("\n", " ")))
+	text = status['text'].replace("\n", " ")
+	screen_name = status['user']['screen_name']
+	if status.has_key('retweeted_status'):
+	    text = (u"%s (RT by @%s)" %(status['retweeted_status']['text'], status['user']['screen_name']))
+	    screen_name = status['retweeted_status']['user']['screen_name']
+        return (u"%s %s %s" %(status['id'], screen_name, text))
 
 class URLStatusFormatter(object):
     urlmatch = re.compile(r'https?://\S+')
