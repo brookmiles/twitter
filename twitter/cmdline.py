@@ -74,6 +74,7 @@ from api import Twitter, TwitterError
 from oauth import OAuth, write_token_file, read_token_file
 from oauth_dance import oauth_dance
 import ansi
+import socket
 
 OPTIONS = {
     'action': 'home',
@@ -171,7 +172,7 @@ class IRCStatusFormatter(object):
 	text = status['text'].replace("\n", " ")
 	screen_name = status['user']['screen_name']
 	if status.has_key('retweeted_status'):
-	    text = (u"%s (RT by @%s)" %(status['retweeted_status']['text'], status['user']['screen_name']))
+	    text = (u"%s (RT by @%s)" %(status['retweeted_status']['text'], status['user']['screen_name'])).replace("\n", " ")
 	    screen_name = status['retweeted_status']['user']['screen_name']
         return (u"%s %s %s" %(status['id'], screen_name, text))
 
@@ -495,6 +496,8 @@ def main(args=sys.argv[1:]):
         print >> sys.stderr, "I can't do that, %s." %(e)
         print >> sys.stderr
         raise SystemExit(1)
+
+    socket.setdefaulttimeout(10)
 
     config_path = os.path.expanduser(
         arg_options.get('config_filename') or OPTIONS.get('config_filename'))
